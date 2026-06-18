@@ -69,12 +69,8 @@ function normalizar(str) {
     .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
-function getFechaEntrega(carrera, carreraAgrupada, local) {
-  var c = normalizar(carrera);
-  var ca = normalizar(carreraAgrupada);
-  if (local === 'localLN')  return 'Ya puedes recoger tu carnet';
-  if (local === 'local01')  return CRONOGRAMA_LOCAL01[ca] || CRONOGRAMA_LOCAL01[c] || 'Ya puedes recoger tu carnet';
-  return CRONOGRAMA_LOCAL05[c] || 'Ya puedes recoger tu carnet';
+function getFechaEntrega() {
+  return 'Ya puedes recoger tu carnet';
 }
 
 function getLocalBase(carrera, carreraAgrupada) {
@@ -176,12 +172,49 @@ function buscarEnHojaLN(hoja, codigoBuscar, prefijo) {
   return null;
 }
 
+function buscarEnHojaOnline(hoja, codigoBuscar, prefijo) {
+  var ultimaFila = hoja.getLastRow();
+  var ultimaCol  = hoja.getLastColumn();
+  if (ultimaFila < 2) return null;
+
+  var datos = hoja.getRange(1, 1, ultimaFila, ultimaCol).getValues();
+  var enc   = datos[0];
+
+  var col = { codigo: -1, nombre: -1, carrera: -1, estado: -1 };
+  for (var i = 0; i < enc.length; i++) {
+    var h = normalizar(enc[i]);
+    if (h === 'CODIGO DE ESTUDIANTE') col.codigo  = i;
+    if (h === 'APELLIDOS Y NOMBRES')  col.nombre  = i;
+    if (h === 'CARRERA')              col.carrera = i;
+    if (h === 'ESTADO')               col.estado  = i;
+  }
+  if (col.codigo === -1) return null;
+
+  for (var j = 1; j < datos.length; j++) {
+    var codigoFila = datos[j][col.codigo].toString().trim();
+    if (codigoFila.substring(0, 6) !== prefijo) continue;
+
+    if (codigoFila === codigoBuscar) {
+      var nombre = col.nombre !== -1 ? datos[j][col.nombre].toString().trim() : '';
+      var estado = col.estado !== -1 ? normalizar(datos[j][col.estado])       : '';
+      return { encontrado: true, nombre: nombre, listo: true, entregado: estado === 'ENTREGADO', local: 'local01', fecha: getFechaEntrega() };
+    }
+  }
+  return null;
+}
+
 // ─── ENTRY POINT ──────────────────────────────────────────────────────────────
 
 function buscarAlumno(codigo) {
   var ss           = SpreadsheetApp.getActiveSpreadsheet();
   var codigoBuscar = codigo.toString().trim();
   var prefijo      = codigoBuscar.substring(0, 6); // filtro de rango
+
+  var hojaOnline = ss.getSheetByName('ONLINE 2026-I');
+  if (hojaOnline) {
+    var r0 = buscarEnHojaOnline(hojaOnline, codigoBuscar, prefijo);
+    if (r0) return r0;
+  }
 
   var hojaBase = ss.getSheetByName('BASE CARNÉ 2026-1');
   if (hojaBase) {

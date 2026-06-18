@@ -298,8 +298,7 @@
           '📅 <strong>' + (data.fecha || '') + '</strong><br><br>' +
           '📍 <strong>' + local.direccion + '</strong><br>' +
           '🕐 ' + local.horario + '<br><br>' +
-          'Recuerda presentar tu <strong>DNI físico</strong> para solicitar el carnet.' +
-(data.local !== 'localLN' ? '<br><br>⚠️ Si no pudiste recogerlo en tu fecha indicada, puedes acercarte a partir del <strong>Sábado 06 de Junio</strong>.' : '');
+          'Recuerda presentar tu <strong>DNI físico</strong> para solicitar el carnet.';
         document.getElementById('result-listo').style.display = 'block';
       } else {
         document.getElementById('nombre-pendiente').textContent = data.nombre;
