@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Consulta de Carnet - UNW</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f0f9f9;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background: #00B5B8;
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    header .logo-text {
+      color: white;
+      font-size: 16px;
+      font-weight: 600;
+      line-height: 1.2;
+    }
+
+    header .logo-text span {
+      display: block;
+      font-size: 12px;
+      font-weight: 400;
+      opacity: 0.85;
+    }
+
+    .accent-bar {
+      height: 5px;
+      background: #F5A623;
+    }
+
+    main {
+      flex: 1;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 1.5rem 1rem;
+      width: 100%;
+    }
+
+    .card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 16px rgba(0,181,184,0.12);
+  padding: 1.5rem;
+  width: 100%;
+  max-width: 600px; /* sube un poco */
+}
+
+
+    @media (max-width: 600px) {
+      main {
+        padding: 1rem 0.75rem;
+        align-items: flex-start;
+      }
+      .card {
+        padding: 1.25rem 1rem;
+        border-radius: 10px;
+      }
+      .card-title { font-size: 18px; }
+      .card-subtitle { font-size: 12px; }
+      input[type="text"] { font-size: 16px; padding: 12px 14px; }
+      button { font-size: 16px; padding: 13px; }
+      .result-estado { font-size: 13px; line-height: 1.5; }
+      .result-nombre { font-size: 14px; }
+    }
+
+    .card-title {
+      font-size: 20px;
+      font-weight: 600;
+      color: #00868A;
+      margin-bottom: 6px;
+      text-align: center;
+    }
+
+    .card-subtitle {
+      font-size: 13px;
+      color: #888;
+      margin-bottom: 1.5rem;
+      text-align: center;
+    }
+
+    label {
+      font-size: 13px;
+      color: #555;
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 11px 14px;
+      border: 1.5px solid #cce8e9;
+      border-radius: 8px;
+      font-size: 15px;
+      color: #333;
+      outline: none;
+      transition: border-color 0.2s;
+      margin-bottom: 12px;
+    }
+
+    input[type="text"]:focus {
+      border-color: #00B5B8;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      background: #00B5B8;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    button:hover { background: #009a9d; }
+    button:disabled { background: #aaa; cursor: not-allowed; }
+
+    .result {
+      margin-top: 1.25rem;
+      border-radius: 8px;
+      padding: 1rem 1.1rem;
+      display: none;
+    }
+
+    .result.listo {
+      background: #e8f9f0;
+      border: 1.5px solid #34c97a;
+    }
+
+    .result.pendiente {
+      background: #fff8ec;
+      border: 1.5px solid #F5A623;
+    }
+
+    .result.no-encontrado {
+      background: #fff0f0;
+      border: 1.5px solid #e05c5c;
+    }
+
+    .result-icon {
+      font-size: 22px;
+      margin-bottom: 6px;
+    }
+
+    .result-nombre {
+      font-size: 15px;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 4px;
+    }
+
+    .result-estado {
+      font-size: 13px;
+      color: #555;
+    }
+
+    .result.listo .result-estado { color: #1a8c52; }
+    .result.pendiente .result-estado { color: #a06800; }
+    .result.no-encontrado .result-estado { color: #c03030; }
+
+    footer {
+      text-align: center;
+      padding: 14px;
+      font-size: 12px;
+      color: #aaa;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="logo-text">
+      Universidad Norbert Wiener
+      <span>Consulta de estado de carnet</span>
+    </div>
+  </header>
+  <div class="accent-bar"></div>
+
+  <main>
+    <div class="card">
+      <p class="card-title">¿Ya está listo tu carnet?</p>
+      <p class="card-subtitle">Ingresa tu código de alumno para verificar el estado.</p>
+
+      <label for="codigo">Código de alumno</label>
+      <input type="text" id="codigo" placeholder="Ej. 2022200403" maxlength="20" />
+
+      <button id="btn" onclick="consultar()">Consultar</button>
+
+      <div class="result" id="result-listo">
+        <div class="result-icon">✅</div>
+        <div class="result-nombre" id="nombre-listo"></div>
+        <div class="result-estado">Tu carnet está <strong>listo para recoger</strong>. Acércate a la oficina correspondiente.</div>
+      </div>
+
+      <div class="result" id="result-pendiente">
+        <div class="result-icon">⏳</div>
+        <div class="result-nombre" id="nombre-pendiente"></div>
+        <div class="result-estado">Tu carnet aún <strong>no está disponible</strong>. Por favor, vuelve a consultar más tarde.</div>
+      </div>
+
+      <div class="result" id="result-no-encontrado">
+        <div class="result-icon">❌</div>
+        <div class="result-estado">El código ingresado <strong>no figura en la base de datos</strong>. Verifica tu código o comunícate con tu oficina.</div>
+      </div>
+    </div>
+  </main>
+
+  <footer>Universidad Norbert Wiener &copy; 2026</footer>
+
+  <script>
+    function consultar() {
+      var codigo = document.getElementById('codigo').value.trim();
+      if (!codigo) {
+        alert('Por favor ingresa tu código de alumno.');
+        return;
+      }
+
+      var btn = document.getElementById('btn');
+      btn.disabled = true;
+      btn.textContent = 'Buscando...';
+
+      ocultarResultados();
+
+      google.script.run
+        .withSuccessHandler(mostrarResultado)
+        .withFailureHandler(function(err) {
+          btn.disabled = false;
+          btn.textContent = 'Consultar';
+          alert('Error al consultar. Intenta nuevamente.');
+        })
+        .buscarAlumno(codigo);
+    }
+
+    function ocultarResultados() {
+      document.getElementById('result-listo').style.display = 'none';
+      document.getElementById('result-pendiente').style.display = 'none';
+      document.getElementById('result-no-encontrado').style.display = 'none';
+    }
+
+    var LOCALES = {
+      local01: {
+        direccion: 'Jr. Larrabure y Unanue 110, Av. Arequipa 440, Lima — Piso 01, Oficina PAE',
+        horario: 'Lun. a Vie. 8:00 am - 8:00 pm | Sáb. 8:00 am - 8:00 pm'
+      },
+      local05: {
+        direccion: 'Av. Arenales 1555, Lince — Piso 01, Oficina PAE',
+        horario: 'Lun. a Vie. 8:00 am - 8:00 pm | Sáb. 8:00 am - 8:00 pm'
+      },
+      localLN: {
+        direccion: 'Local Lima Norte — Av. El Pacífico 431, Independencia (al costado del C.C. Megaplaza) — Piso 01, Oficina PAE',
+        horario: 'Lun. a Vie. 8:00 am - 8:00 pm | Sáb. 9:00 am - 1:00 pm'
+      }
+    };
+
+    function mostrarResultado(data) {
+      var btn = document.getElementById('btn');
+      btn.disabled = false;
+      btn.textContent = 'Consultar';
+
+      if (!data.encontrado) {
+        document.getElementById('result-no-encontrado').querySelector('.result-estado').innerHTML =
+          'El código ingresado <strong>aún no está programado para el recojo</strong>. Recuerda revisar el estado de tu trámite en Wienernet y recibirás a tu correo institucional la notificación de recojo.<br><br>Para mayor información comunícate al WhatsApp: <strong>994 612 467</strong>';
+        document.getElementById('result-no-encontrado').style.display = 'block';
+        return;
+      }
+
+      var local = LOCALES[data.local] || LOCALES['local05'];
+
+      if (data.entregado) {
+        document.getElementById('nombre-pendiente').textContent = data.nombre;
+        document.getElementById('result-pendiente').querySelector('.result-estado').innerHTML =
+          'Tu carnet ya fue <strong>entregado anteriormente</strong>. Comunícate con tu oficina si tienes dudas.';
+        document.getElementById('result-pendiente').style.display = 'block';
+        return;
+      }
+
+      if (data.listo) {
+        document.getElementById('nombre-listo').textContent = data.nombre;
+        document.getElementById('result-listo').querySelector('.result-estado').innerHTML =
+          'Puedes recoger tu <strong>carnet</strong> a partir del:<br><br>' +
+          '📅 <strong>' + (data.fecha || '') + '</strong><br><br>' +
+          '📍 <strong>' + local.direccion + '</strong><br>' +
+          '🕐 ' + local.horario + '<br><br>' +
+          'Recuerda presentar tu <strong>DNI físico</strong> para solicitar el carnet.' +
+(data.local !== 'localLN' ? '<br><br>⚠️ Si no pudiste recogerlo en tu fecha indicada, puedes acercarte a partir del <strong>Sábado 06 de Junio</strong>.' : '');
+        document.getElementById('result-listo').style.display = 'block';
+      } else {
+        document.getElementById('nombre-pendiente').textContent = data.nombre;
+        document.getElementById('result-pendiente').style.display = 'block';
+      }
+    }
+
+    document.getElementById('codigo').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') consultar();
+    });
+  </script>
+
+</body>
+</html>
