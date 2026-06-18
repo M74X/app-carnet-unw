@@ -60,7 +60,7 @@ var CARRERAS_SALUD = [
   'TECNOLOGIA MEDICA EN TERAPIA FISICA Y REHABILITACION'
 ];
 
-var GRUPOS_LOCAL01 = ['MAESTRIAS', 'SEGUNDA ESPECIALIDAD'];
+var GRUPOS_LOCAL01 = ['MAESTRIA', 'SEGUNDA ESPECIALIDAD'];
 
 // ─── UTILIDADES ───────────────────────────────────────────────────────────────
 
@@ -77,7 +77,7 @@ function getLocalBase(carrera, carreraAgrupada) {
   var c  = normalizar(carrera);
   var ca = normalizar(carreraAgrupada);
   for (var i = 0; i < GRUPOS_LOCAL01.length; i++) {
-    if (ca === GRUPOS_LOCAL01[i]) return 'local01';
+    if (ca === GRUPOS_LOCAL01[i] || ca.indexOf(GRUPOS_LOCAL01[i]) === 0) return 'local01';
   }
   for (var j = 0; j < CARRERAS_SALUD.length; j++) {
     if (c === CARRERAS_SALUD[j]) return 'local01';
