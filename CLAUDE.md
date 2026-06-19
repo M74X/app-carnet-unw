@@ -6,5 +6,6 @@ El código no debe exponer ningún dato o cifra institucional. Están en `.gitig
 
 - **`.xlsx`** — datos personales de terceros (DNIs de alumnos)
 - **`.docx`** — reportes con cifras institucionales
+- **`reportes/`** — directorio donde se generan/guardan todos los reportes
 
 Solo se sube código fuente.
