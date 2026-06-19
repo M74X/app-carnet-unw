@@ -2,5 +2,9 @@
 
 ## Política de archivos en el repo
 
-- **Nunca subir archivos `.xlsx`** — contienen datos personales de terceros (DNIs de alumnos). Están en `.gitignore`.
-- **Solo se pushean reportes `.docx`** — únicamente contienen datos numéricos agregados, sin información personal.
+El código no debe exponer ningún dato o cifra institucional. Están en `.gitignore`:
+
+- **`.xlsx`** — datos personales de terceros (DNIs de alumnos)
+- **`.docx`** — reportes con cifras institucionales
+
+Solo se sube código fuente.
