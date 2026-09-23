@@ -54,7 +54,7 @@ var CRONOGRAMA_LN = {
 };
 
 var CARRERAS_SALUD = [
-  'ENFERMERIA', 'FARMACIA Y BIOQUIMICA', 'INGENIERIA BIOMEDICA',
+  'ENFERMERIA', 'FARMACIA Y BIOQUIMICA',
   'MEDICINA HUMANA', 'NUTRICION Y DIETETICA', 'OBSTETRICIA', 'ODONTOLOGIA',
   'PSICOLOGIA', 'TECNOLOGIA MEDICA EN LABORATORIO CLINICO Y ANATOMIA PATOLOGICA',
   'TECNOLOGIA MEDICA EN TERAPIA FISICA Y REHABILITACION'
@@ -79,153 +79,124 @@ function getLocalBase(carrera, carreraAgrupada) {
   for (var i = 0; i < GRUPOS_LOCAL01.length; i++) {
     if (ca === GRUPOS_LOCAL01[i] || ca.indexOf(GRUPOS_LOCAL01[i]) === 0) return 'local01';
   }
+  // Se revisan ambas columnas por si una viene mal llenada
   for (var j = 0; j < CARRERAS_SALUD.length; j++) {
-    if (c === CARRERAS_SALUD[j]) return 'local01';
+    if (c === CARRERAS_SALUD[j] || ca === CARRERAS_SALUD[j]) return 'local01';
   }
   return 'local05';
 }
 
+// ─── CONFIGURACIÓN DE HOJAS Y COLUMNAS ────────────────────────────────────────
+// Si cambian los nombres en el Excel, solo hay que tocar esta sección.
+// Todo se compara normalizado: sin tildes, en mayúsculas y sin espacios sobrantes.
+
+// Hojas donde se busca, en orden de prioridad. Se reconocen por palabra clave,
+// así que 'ONLINE 2026-I', 'BASE ONLINE' u 'ONLINE 2026-II' sirven igual.
+var HOJAS = [
+  { patron: /ONLINE/,            local: function ()  { return 'local01'; } },
+  { patron: /BASE CARNE/,        local: function (f) { return getLocalBase(f.carrera, f.carreraAg); } },
+  { patron: /\bLN\b|LIMA NORTE/, local: function ()  { return 'localLN'; } },
+];
+
+// Nombres aceptados para cada columna. Se usa la primera columna que coincida.
+var COLUMNAS = {
+  codigo:    ['CODIGO', 'CODIGO DE ESTUDIANTE', 'CODIGO DE ALUMNO', 'ID ESTUDIANTE'],
+  nombre:    ['APELLIDOS Y NOMBRES'],
+  ap1:       ['PRIMER APELLIDO'],
+  ap2:       ['SEGUNDO APELLIDO'],
+  nombres:   ['NOMBRES'],
+  carrera:   ['CARRERA', 'CARRERA PROFESIONAL', 'PROGRAMA ACADEMICO'],
+  carreraAg: ['CARRERA.'],
+  estado:    ['ESTADO'],
+};
+
+// Filas donde se busca el encabezado (por si el Excel trae filas vacías arriba)
+var FILAS_ENCABEZADO = 5;
+
 // ─── BÚSQUEDA ─────────────────────────────────────────────────────────────────
-// Columnas esperadas en BASE CARNÉ 2026-1 (después de limpiar):
-//   Còdigo | Primer Apellido | Segundo Apellido | Nombres | Carrera | Carrera. | Estado
-//
-// Columnas esperadas en DATA CARNET UNIVERSITARIO LN (después de limpiar):
-//   CODIGO DE ESTUDIANTE | APELLIDOS Y NOMBRES | CARRERA | ESTADO
 
-function buscarEnHojaBase(hoja, codigoBuscar, prefijo) {
-  var ultimaFila = hoja.getLastRow();
-  var ultimaCol  = hoja.getLastColumn();
-  if (ultimaFila < 2) return null;
-
-  // Lee solo las columnas necesarias (rango acotado, no getDataRange completo)
-  var datos = hoja.getRange(1, 1, ultimaFila, ultimaCol).getValues();
-  var enc   = datos[0];
-
-  // Mapear columnas por nombre
-  var col = { codigo: -1, ap1: -1, ap2: -1, nombres: -1, carrera: -1, carreraAg: -1, estado: -1 };
-  for (var i = 0; i < enc.length; i++) {
-    var h = normalizar(enc[i]);
-    if (h === 'CODIGO' || h === 'CODIGO')           col.codigo   = i;
-    if (h === 'PRIMER APELLIDO')                    col.ap1      = i;
-    if (h === 'SEGUNDO APELLIDO')                   col.ap2      = i;
-    if (h === 'NOMBRES')                            col.nombres  = i;
-    if (h === 'CARRERA' && col.carrera === -1)      col.carrera  = i;
-    if (h === 'CARRERA.')                           col.carreraAg = i;
-    if (h === 'ESTADO')                             col.estado   = i;
-  }
-  if (col.codigo === -1) return null;
-
-  for (var j = 1; j < datos.length; j++) {
-    var codigoFila = datos[j][col.codigo].toString().trim();
-
-    // Filtro por prefijo: descarta filas que no empiecen igual (reducción de rango)
-    if (codigoFila.substring(0, 6) !== prefijo) continue;
-
-    if (codigoFila === codigoBuscar) {
-      var ap1          = col.ap1      !== -1 ? datos[j][col.ap1].toString().trim()      : '';
-      var ap2          = col.ap2      !== -1 ? datos[j][col.ap2].toString().trim()      : '';
-      var nombres      = col.nombres  !== -1 ? datos[j][col.nombres].toString().trim()  : '';
-      var carrera      = col.carrera  !== -1 ? datos[j][col.carrera].toString().trim()  : '';
-      var carreraAg    = col.carreraAg !== -1 ? datos[j][col.carreraAg].toString().trim(): '';
-      var estado       = col.estado   !== -1 ? normalizar(datos[j][col.estado])         : '';
-      var nombre       = (ap1 + ' ' + ap2 + ', ' + nombres).trim().replace(/^,\s*/, '');
-      var local        = getLocalBase(carrera, carreraAg);
-      var fecha        = getFechaEntrega(carrera, carreraAg, local);
-      return { encontrado: true, nombre: nombre, listo: true, entregado: estado === 'ENTREGADO', local: local, fecha: fecha };
+function mapearColumnas(encabezado) {
+  var enc = encabezado.map(normalizar);
+  var col = {};
+  for (var campo in COLUMNAS) {
+    col[campo] = -1;
+    for (var i = 0; i < enc.length && col[campo] === -1; i++) {
+      if (COLUMNAS[campo].indexOf(enc[i]) !== -1) col[campo] = i;
     }
   }
-  return null;
+  return col;
 }
 
-function buscarEnHojaLN(hoja, codigoBuscar, prefijo) {
-  var ultimaFila = hoja.getLastRow();
-  var ultimaCol  = hoja.getLastColumn();
-  if (ultimaFila < 2) return null;
-
-  var datos = hoja.getRange(1, 1, ultimaFila, ultimaCol).getValues();
-  var enc   = datos[0];
-
-  var col = { codigo: -1, nombre: -1, carrera: -1, estado: -1 };
-  for (var i = 0; i < enc.length; i++) {
-    var h = normalizar(enc[i]);
-    if (h === 'CODIGO DE ESTUDIANTE')               col.codigo  = i;
-    if (h === 'APELLIDOS Y NOMBRES')                col.nombre  = i;
-    if (h === 'CARRERA' || h === 'CARRERA PROFESIONAL') col.carrera = i;
-    if (h === 'ESTADO')                             col.estado  = i;
+function validarColumnas(hoja, col) {
+  var faltan = [];
+  if (col.codigo === -1) faltan.push('código (' + COLUMNAS.codigo.join(' / ') + ')');
+  if (col.estado === -1) faltan.push('estado (' + COLUMNAS.estado.join(' / ') + ')');
+  if (col.nombre === -1 && col.ap1 === -1 && col.nombres === -1) {
+    faltan.push('nombre (' + COLUMNAS.nombre.concat(COLUMNAS.ap1, COLUMNAS.nombres).join(' / ') + ')');
   }
-  if (col.codigo === -1) return null;
-
-  for (var j = 1; j < datos.length; j++) {
-    var codigoFila = datos[j][col.codigo].toString().trim();
-
-    // Filtro por prefijo
-    if (codigoFila.substring(0, 6) !== prefijo) continue;
-
-    if (codigoFila === codigoBuscar) {
-      var nombre  = col.nombre  !== -1 ? datos[j][col.nombre].toString().trim()  : '';
-      var carrera = col.carrera !== -1 ? datos[j][col.carrera].toString().trim() : '';
-      var estado  = col.estado  !== -1 ? normalizar(datos[j][col.estado])        : '';
-      var fecha   = getFechaEntrega(carrera, '', 'localLN');
-      return { encontrado: true, nombre: nombre, listo: true, entregado: estado === 'ENTREGADO', local: 'localLN', fecha: fecha };
-    }
+  if (faltan.length) {
+    throw new Error('Hoja "' + hoja.getName() + '": no se encontró la columna de ' + faltan.join(', '));
   }
-  return null;
 }
 
-function buscarEnHojaOnline(hoja, codigoBuscar, prefijo) {
-  var ultimaFila = hoja.getLastRow();
-  var ultimaCol  = hoja.getLastColumn();
-  if (ultimaFila < 2) return null;
-
-  var datos = hoja.getRange(1, 1, ultimaFila, ultimaCol).getValues();
-  var enc   = datos[0];
-
-  var col = { codigo: -1, nombre: -1, carrera: -1, estado: -1 };
-  for (var i = 0; i < enc.length; i++) {
-    var h = normalizar(enc[i]);
-    if (h === 'CODIGO DE ESTUDIANTE') col.codigo  = i;
-    if (h === 'APELLIDOS Y NOMBRES')  col.nombre  = i;
-    if (h === 'CARRERA')              col.carrera = i;
-    if (h === 'ESTADO')               col.estado  = i;
+function leerFila(fila, col) {
+  var f = {};
+  for (var campo in col) {
+    f[campo] = col[campo] !== -1 ? fila[col[campo]].toString().trim() : '';
   }
-  if (col.codigo === -1) return null;
+  return f;
+}
 
-  for (var j = 1; j < datos.length; j++) {
-    var codigoFila = datos[j][col.codigo].toString().trim();
-    if (codigoFila.substring(0, 6) !== prefijo) continue;
+function armarNombre(f) {
+  if (f.nombre) return f.nombre;
+  return (f.ap1 + ' ' + f.ap2 + ', ' + f.nombres).trim().replace(/^,\s*/, '');
+}
 
-    if (codigoFila === codigoBuscar) {
-      var nombre = col.nombre !== -1 ? datos[j][col.nombre].toString().trim() : '';
-      var estado = col.estado !== -1 ? normalizar(datos[j][col.estado])       : '';
-      return { encontrado: true, nombre: nombre, listo: true, entregado: estado === 'ENTREGADO', local: 'local01', fecha: getFechaEntrega() };
-    }
+function buscarEnHoja(hoja, config, codigoBuscar) {
+  var datos = hoja.getDataRange().getValues();
+
+  // Ubicar la fila de encabezado: la primera que tenga columna de código
+  var filaEnc = -1, col;
+  for (var e = 0; e < Math.min(FILAS_ENCABEZADO, datos.length) && filaEnc === -1; e++) {
+    col = mapearColumnas(datos[e]);
+    if (col.codigo !== -1) filaEnc = e;
   }
-  return null;
+  if (filaEnc === -1) col = mapearColumnas(datos[0] || []);
+  validarColumnas(hoja, col);
+
+  // Si el código está repetido, gana la fila ENTREGADO; si no hay, la primera
+  var encontrada = null;
+  for (var j = filaEnc + 1; j < datos.length; j++) {
+    if (datos[j][col.codigo].toString().trim() !== codigoBuscar) continue;
+    var f = leerFila(datos[j], col);
+    var entregado = normalizar(f.estado) === 'ENTREGADO';
+    if (!encontrada || entregado) encontrada = { f: f, entregado: entregado };
+    if (entregado) break;
+  }
+  if (!encontrada) return null;
+
+  return {
+    encontrado: true,
+    nombre:     armarNombre(encontrada.f),
+    listo:      true,
+    entregado:  encontrada.entregado,
+    local:      config.local(encontrada.f),
+    fecha:      getFechaEntrega(),
+  };
 }
 
 // ─── ENTRY POINT ──────────────────────────────────────────────────────────────
 
 function buscarAlumno(codigo) {
-  var ss           = SpreadsheetApp.getActiveSpreadsheet();
   var codigoBuscar = codigo.toString().trim();
-  var prefijo      = codigoBuscar.substring(0, 6); // filtro de rango
+  var hojas        = SpreadsheetApp.getActiveSpreadsheet().getSheets();
 
-  var hojaOnline = ss.getSheetByName('ONLINE 2026-I');
-  if (hojaOnline) {
-    var r0 = buscarEnHojaOnline(hojaOnline, codigoBuscar, prefijo);
-    if (r0) return r0;
-  }
-
-  var hojaBase = ss.getSheetByName('BASE CARNÉ 2026-1');
-  if (hojaBase) {
-    var r = buscarEnHojaBase(hojaBase, codigoBuscar, prefijo);
-    if (r) return r;
-  }
-
-  var hojaLN = ss.getSheetByName('DATA CARNET UNIVERSITARIO LN');
-  if (hojaLN) {
-    var r2 = buscarEnHojaLN(hojaLN, codigoBuscar, prefijo);
-    if (r2) return r2;
+  for (var i = 0; i < HOJAS.length; i++) {
+    for (var k = 0; k < hojas.length; k++) {
+      if (!HOJAS[i].patron.test(normalizar(hojas[k].getName()))) continue;
+      var r = buscarEnHoja(hojas[k], HOJAS[i], codigoBuscar);
+      if (r) return r;
+    }
   }
 
   return { encontrado: false };
